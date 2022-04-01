@@ -1,3 +1,5 @@
+import numpy as np
+
 from layers import *
 
 
@@ -5,7 +7,7 @@ class ThreeLayerConvNet:
     """
     A three-layer convolutional network with the following architecture:
 
-    conv - relu - 2x2 max pool - affine - relu - affine - softmax
+    conv - relu - 2x2 max pool - affine - bn - relu - affine - softmax
 
     The network operates on minibatches of data that have shape (N, C, H, W)
     consisting of N images, each with height H and width W and with C input
@@ -45,6 +47,8 @@ class ThreeLayerConvNet:
         self.params['b1'] = np.zeros(num_filters)
         self.params['W2'] = weight_scale * np.random.randn(num_filters * input_dim[1] * input_dim[2] // 4, hidden_dim)
         self.params['b2'] = np.zeros(hidden_dim)
+        self.params['gamma'] = np.ones(hidden_dim)
+        self.params['beta'] = np.zeros(hidden_dim)
         self.params['W3'] = weight_scale * np.random.randn(hidden_dim, num_classes)
         self.params['b3'] = np.zeros(num_classes)
 
@@ -73,6 +77,10 @@ class ThreeLayerConvNet:
         W1, b1 = self.params["W1"], self.params["b1"]
         W2, b2 = self.params["W2"], self.params["b2"]
         W3, b3 = self.params["W3"], self.params["b3"]
+        gamma, beta = self.params['gamma'], self.params['beta']
+        bn_params = {'mode': 'train'}
+        if y is None:
+            bn_params = {'mode': 'test'}
 
         # pass conv_param to the forward pass for the convolutional layer
         # Padding and stride chosen to preserve the input spatial size
@@ -86,9 +94,11 @@ class ThreeLayerConvNet:
         out2, cache2 = relu_forward(out1)
         out3, cache3 = max_pool_forward_naive(out2, pool_param)
         out4, cache4 = affine_forward(out3, W2, b2)
-        out5, cache5 = relu_forward(out4)
-        out6, cache6 = affine_forward(out5, W3, b3)
-        scores = out6
+        out5, cache5 = batchnorm_forward(out4, gamma, beta, bn_params)
+        # out5, cache5 = out4, cache4
+        out6, cache6 = relu_forward(out5)
+        out7, cache7 = affine_forward(out6, W3, b3)
+        scores = out7
 
         if y is None:
             return scores
@@ -96,8 +106,10 @@ class ThreeLayerConvNet:
         # 进行反向传播
         loss, grads = 0, {}
         loss, dscores = softmax_loss(scores, y)
-        dout6, grads['W3'], grads['b3'] = affine_backward(dscores, cache6)
-        dout5 = relu_backward(dout6, cache5)
+        dout7, grads['W3'], grads['b3'] = affine_backward(dscores, cache7)
+        dout6 = relu_backward(dout7, cache6)
+        dout5, dgamma, dbeta = batchnorm_backward(dout6, cache5)
+        # dout5 = dout6
         dout4, grads['W2'], grads['b2'] = affine_backward(dout5, cache4)
         dout3 = max_pool_backward_naive(dout4, cache3)
         dout2 = relu_backward(dout3, cache2)
@@ -106,6 +118,8 @@ class ThreeLayerConvNet:
         grads['W1'] += self.reg * W1
         grads['W2'] += self.reg * W2
         grads['W3'] += self.reg * W3
+        grads['gamma'] = dgamma
+        grads['beta'] = dbeta
         reg_loss = 0.5 * self.reg * sum(np.sum(W * W) for W in [W1, W2, W3])
         loss += reg_loss
 

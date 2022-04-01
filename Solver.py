@@ -19,7 +19,7 @@ class Solver:
         self.batch_size = kwargs.pop("batch_size", 100)  # 每批次数据量
         self.num_epochs = kwargs.pop("num_epochs", 10)  # 训练集上的训练次数
         self.num_train_samples = kwargs.pop("num_train_samples", 1000)  # 训练数据量
-        self.num_val_samples = kwargs.pop("num_val_samples", None)  # 验证数据量
+        self.num_val_samples = kwargs.pop("num_val_samples", 100)  # 验证数据量
         self.print_every = kwargs.pop("print_every", 10)
         self.verbose = kwargs.pop("verbose", True)
 

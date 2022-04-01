@@ -124,7 +124,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     Input:
     - x: Data of shape (N, D)
     - gamma: Scale parameter of shape (D,)
-    - beta: Shift paremeter of shape (D,)
+    - beta: Shift parameter of shape (D,)
     - bn_param: Dictionary with the following keys:
       - mode: 'train' or 'test'; required
       - eps: Constant for numeric stability
@@ -188,9 +188,9 @@ def batchnorm_backward(dout, cache):
     dgamma = np.sum(x_norm * dout, axis=0)
     dbeta = np.sum(dout, axis=0)
     dx_norm = dout * gamma
-    dvar = dx_norm * (-1 / 2) * np.power(var + eps, -3 / 2)
-    dmean = dx_norm * (-1) / np.sqrt(var + eps)
-    dx = dx_norm * np.sqrt(var + eps) + dvar * 2 * (x - mean) / N + dmean / N
+    dvar = np.sum(dx_norm * (x - mean), axis=0) * (-1 / 2) * np.power(var + eps, -3 / 2)
+    dmean = np.sum(dx_norm * (-1) / np.sqrt(var + eps), axis=0) + dvar * (-2) * np.sum(x - mean, axis=0) / N
+    dx = dx_norm / np.sqrt(var + eps) + dvar * 2 * (x - mean) / N + dmean / N
 
     return dx, dgamma, dbeta
 
