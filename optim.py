@@ -15,7 +15,7 @@ def sgd(w, dw, config=None):
     w -= config["learning_rate"] * dw
     return w, config
 
-# 动量更新
+# 动量更新，引入v，随着时间积累
 def sgd_momentum(w, dw, config=None):
     """
     Performs stochastic gradient descent with momentum.
@@ -41,7 +41,7 @@ def sgd_momentum(w, dw, config=None):
 
     return next_w, config
 
-
+# adagrad改进，引入decayrate，学习率不会单调减小，使用矩阵中每个数值的梯度平方和对梯度进行归一化
 def rmsprop(w, dw, config=None):
     """
     Uses the RMSProp update rule, which uses a moving average of squared
@@ -68,7 +68,7 @@ def rmsprop(w, dw, config=None):
 
     return next_w, config
 
-
+# 可以看做是rmsprop和momentum_sgd的结合
 def adam(w, dw, config=None):
     """
     Uses the Adam update rule, which incorporates moving averages of both the
@@ -97,6 +97,7 @@ def adam(w, dw, config=None):
     config['t'] += 1
     moment1 = config['beta1'] * config['m'] + (1 - config['beta1']) * dw
     moment2 = config['beta2'] * config['v'] + (1 - config['beta2']) * dw * dw
+    # 两个bias来矫正momentum
     bias_1 = moment1 / (1 - config['beta1'] ** config['t'])
     bias_2 = moment2 / (1 - config['beta2'] ** config['t'])
     next_w = w - config['learning_rate'] * bias_1 / (np.sqrt(bias_2) + config['epsilon'])

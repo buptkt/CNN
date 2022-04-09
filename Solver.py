@@ -1,3 +1,5 @@
+import time
+
 import optim
 from layers import *
 
@@ -119,7 +121,7 @@ class Solver:
         num_train = self.X_train.shape[0]
         iterations_per_epoch = max(num_train // self.batch_size, 1)
         num_iterations = self.num_epochs * iterations_per_epoch
-
+        start = time.time()
         for t in range(num_iterations):
             # 单批次训练
             self._step()
@@ -156,7 +158,9 @@ class Solver:
                         "(Epoch %d / %d) train acc: %f; val_acc: %f"
                         % (self.epoch, self.num_epochs, train_acc, val_acc)
                     )
-
+                    # end = time.time()
+                    # print(f"time cost of naive_layers(conv - relu - pool) per echo is {end - start}")
+                    # start = time.time()
                 # 记录最好的模型参数
                 if val_acc > self.best_val_acc:
                     self.best_val_acc = val_acc
@@ -166,3 +170,5 @@ class Solver:
 
         # At the end of training swap the best params into the model
         self.model.params = self.best_params
+        print(self.best_params)
+        print(self.best_val_acc)

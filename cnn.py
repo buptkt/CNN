@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 from layers import *
 
 
@@ -90,15 +90,32 @@ class ThreeLayerConvNet:
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {"pool_height": 2, "pool_width": 2, "stride": 2}
         # 进行前向传播
-        out1, cache1 = conv_forward_naive(X, W1, b1, conv_param)
-        out2, cache2 = relu_forward(out1)
-        out3, cache3 = max_pool_forward_naive(out2, pool_param)
-        out4, cache4 = affine_forward(out3, W2, b2)
-        out5, cache5 = batchnorm_forward(out4, gamma, beta, bn_params)
-        # out5, cache5 = out4, cache4
-        out6, cache6 = relu_forward(out5)
-        out7, cache7 = affine_forward(out6, W3, b3)
-        scores = out7
+        conv = Conv_fast()
+        conv_naive = Conv_naive()
+        relu1 = Relu()
+        pool = MaxPool_fast()
+        pool_naive = MaxPool_naive()
+        affine1 = Affine()
+        bn = BatchNorm()
+        relu2 = Relu()
+        affine2 = Affine()
+        # start = time.time()
+        conv.conv_forward_im2col(X, W1, b1, conv_param)
+        relu1.relu_forward(conv.out)
+        pool.max_pool_forward_fast(relu1.out, pool_param)
+        # end = time.time()
+        # print(f"time cost of fast_layers(conv - relu - pool)_forward is {end - start}")
+        # start = time.time()
+        # conv_naive.conv_forward_naive(X, W1, b1, conv_param)
+        # relu1.relu_forward(conv_naive.out)
+        # pool_naive.max_pool_forward_naive(relu1.out, pool_param)
+        # end = time.time()
+        # print(f"time cost of naive_layers(conv - relu - pool)_forward is {end - start}")
+        affine1.affine_forward(pool.out, W2, b2)
+        bn.batchnorm_forward(affine1.out, gamma, beta, bn_params)
+        relu2.relu_forward(bn.out)
+        affine2.affine_forward(relu2.out, W3, b3)
+        scores = affine2.out
 
         if y is None:
             return scores
@@ -106,20 +123,31 @@ class ThreeLayerConvNet:
         # 进行反向传播
         loss, grads = 0, {}
         loss, dscores = softmax_loss(scores, y)
-        dout7, grads['W3'], grads['b3'] = affine_backward(dscores, cache7)
-        dout6 = relu_backward(dout7, cache6)
-        dout5, dgamma, dbeta = batchnorm_backward(dout6, cache5)
-        # dout5 = dout6
-        dout4, grads['W2'], grads['b2'] = affine_backward(dout5, cache4)
-        dout3 = max_pool_backward_naive(dout4, cache3)
-        dout2 = relu_backward(dout3, cache2)
-        dout1, grads['W1'], grads['b1'] = conv_backward_naive(dout2, cache1)
+        affine2.affine_backward(dscores)
+        relu2.relu_backward(affine2.dx)
+        bn.batchnorm_backward(relu2.dx)
+        affine1.affine_backward(bn.dx)
+        # start = time.time()
+        pool.max_pool_backward_fast(affine1.dx)
+        relu1.relu_backward(pool.dx)
+        conv.conv_backward_col2im(relu1.dx)
+        # end = time.time()
+        # print(f"time cost of fast_layers(conv - relu - pool)_backward is {end - start}")
+        # start = time.time()
+        # pool_naive.max_pool_backward_naive(affine1.dx)
+        # relu1.relu_backward(pool_naive.dx)
+        # conv_naive.conv_backward_naive(relu1.dx)
+        # end = time.time()
+        # print(f"time cost of naive_layers(conv - relu - pool)_backward is {end - start}")
+        grads['W3'], grads['b3'] = affine2.dw, affine2.db
+        grads['W2'], grads['b2'] = affine1.dw, affine1.db
+        grads['W1'], grads['b1'] = conv.dw, conv.db
         # 别忘记正则项
         grads['W1'] += self.reg * W1
         grads['W2'] += self.reg * W2
         grads['W3'] += self.reg * W3
-        grads['gamma'] = dgamma
-        grads['beta'] = dbeta
+        grads['gamma'] = bn.dgamma
+        grads['beta'] = bn.dbeta
         reg_loss = 0.5 * self.reg * sum(np.sum(W * W) for W in [W1, W2, W3])
         loss += reg_loss
 
